@@ -34,7 +34,7 @@ st.markdown(
     <style>
     .block-container {
         max-width: 920px;
-        padding-top: 2rem;
+        padding-top: 3rem;
         padding-bottom: 5rem;
     }
     [data-testid="stSidebar"] {
@@ -43,7 +43,9 @@ st.markdown(
     .chat-title {
         font-size: 1.55rem;
         font-weight: 680;
+        line-height: 1.35;
         margin-bottom: 0.2rem;
+        padding-top: 0.1rem;
     }
     .chat-subtitle {
         color: #6f6860;
