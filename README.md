@@ -139,6 +139,8 @@ The first run may download model files and take several minutes.
 
 By default, `Pipeline` uses Gemma generation. If `device_map=auto` offloads Gemma layers to CPU/RAM, generation can be very slow.
 
+In Streamlit, model loading happens once per running server process. The first query may load Gemma and take a long time; later queries reuse the cached `Pipeline` unless the server restarts, the cache is cleared, or source files change.
+
 On a machine with enough free GPU memory, force Gemma onto GPU:
 
 ```bash

@@ -7,6 +7,8 @@ from src import config
 PROMPT_TEMPLATE = """You are a helpful assistant. Answer the question based ONLY on the provided context.
 If the answer cannot be found in the context, reply exactly: "資料庫中無相關資訊"
 Keep your answer concise (1-3 sentences maximum).
+Do not explain your reasoning. Do not include hidden thoughts, analysis, or phrases like "thought".
+Return only the final answer.
 
 Context:
 {context}
@@ -52,6 +54,24 @@ class GemmaGenerator:
         context = "\n\n".join(context_parts)
         return PROMPT_TEMPLATE.format(context=context, query=query)
 
+    def _clean_answer(self, answer: str) -> str:
+        markers = ["Answer:", "Final answer:", "final answer:"]
+        for marker in markers:
+            if marker in answer:
+                answer = answer.split(marker, 1)[1].strip()
+
+        lower_answer = answer.lower()
+        if lower_answer.startswith("thought"):
+            lines = [line.strip() for line in answer.splitlines() if line.strip()]
+            answer_lines = [
+                line
+                for line in lines
+                if not line.lower().startswith(("thought", "analysis", "the user", "i need", "text snippet"))
+            ]
+            answer = " ".join(answer_lines).strip()
+
+        return answer.strip()
+
     def generate(self, query: str, chunks: list[dict]) -> str:
         if not chunks:
             return config.NO_RESULT_ANSWER
@@ -67,7 +87,7 @@ class GemmaGenerator:
         with torch.no_grad():
             output = self.model.generate(**inputs, **generation_kwargs)
         new_tokens = output[0][inputs["input_ids"].shape[1] :]
-        answer = self.tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
+        answer = self._clean_answer(self.tokenizer.decode(new_tokens, skip_special_tokens=True).strip())
         if len(new_tokens) >= config.GEN_MAX_NEW_TOKENS:
             return f"{answer} [截斷]"
         return answer
