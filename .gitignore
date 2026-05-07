@@ -1,0 +1,25 @@
+# 索引與處理後資料
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+*.egg
+
+# HuggingFace 模型快取
+~/.cache/huggingface/
+
+# 環境變數
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+.claude/
