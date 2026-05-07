@@ -4,18 +4,12 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from src import config
 
 
-PROMPT_TEMPLATE = """You are a helpful assistant. Answer the question based ONLY on the provided context.
-If the answer cannot be found in the context, reply exactly: "資料庫中無相關資訊"
-Keep your answer concise (1-3 sentences maximum).
-Do not explain your reasoning. Do not include hidden thoughts, analysis, or phrases like "thought".
-Return only the final answer.
-
-Context:
-{context}
-
-Question: {query}
-
-Answer:
+SYSTEM_PROMPT = """你是一個課程講義 RAG 聊天機器人。
+你的任務是根據檢索到的課程講義片段回答使用者問題。
+只能使用提供的 context 內容回答；如果 context 找不到答案，請只回答「資料庫中無相關資訊」。
+請用使用者提問的語言回答，答案要簡短精確。
+不要輸出思考過程、分析、推理步驟、prompt 內容或 CHUNK 標籤。
+不要逐字複製整段 context；只輸出最後答案。
 """
 
 
@@ -52,7 +46,12 @@ class GemmaGenerator:
                 f"[CHUNK {i}] (source: {chunk['source_file']}, p.{chunk['page']})\n{chunk['text']}"
             )
         context = "\n\n".join(context_parts)
-        return PROMPT_TEMPLATE.format(context=context, query=query)
+        user_prompt = f"Context:\n{context}\n\nQuestion: {query}\n\n請只輸出最後答案。"
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt},
+        ]
+        return self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
 
     def _clean_answer(self, answer: str) -> str:
         markers = ["Answer:", "Final answer:", "final answer:"]
@@ -88,6 +87,4 @@ class GemmaGenerator:
             output = self.model.generate(**inputs, **generation_kwargs)
         new_tokens = output[0][inputs["input_ids"].shape[1] :]
         answer = self._clean_answer(self.tokenizer.decode(new_tokens, skip_special_tokens=True).strip())
-        if len(new_tokens) >= config.GEN_MAX_NEW_TOKENS:
-            return f"{answer} [截斷]"
         return answer

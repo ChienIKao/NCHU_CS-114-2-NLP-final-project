@@ -155,10 +155,10 @@ For quick retrieval-only testing without loading Gemma, use extractive answer mo
 ANSWER_MODE=extractive python3 -c "from src.pipeline import Pipeline; p=Pipeline(); print(p.query('什麼是 Time-homogeneous Markov process？'))"
 ```
 
-You can also reduce generation length:
+You can also change generation length:
 
 ```bash
-GEN_MAX_NEW_TOKENS=64 python3 -c "from src.pipeline import Pipeline; p=Pipeline(); print(p.query('什麼是 Time-homogeneous Markov process？'))"
+GEN_MAX_NEW_TOKENS=256 python3 -c "from src.pipeline import Pipeline; p=Pipeline(); print(p.query('什麼是 Time-homogeneous Markov process？'))"
 ```
 
 ## Run The UI
