@@ -165,6 +165,20 @@ GEN_MAX_NEW_TOKENS=64 python3 -c "from src.pipeline import Pipeline; p=Pipeline(
 streamlit run app.py
 ```
 
+For fast retrieval-only UI mode:
+
+```bash
+ANSWER_MODE=extractive streamlit run app.py
+```
+
+For GPU-only Gemma mode:
+
+```bash
+GEN_DEVICE_MAP=cuda GEN_MAX_NEW_TOKENS=64 streamlit run app.py
+```
+
+This repository includes `.streamlit/config.toml` with Streamlit's file watcher disabled. This avoids noisy optional-dependency tracebacks from `transformers` vision modules, such as missing `torchvision`, which are not needed for this text QA app.
+
 The Streamlit app provides:
 
 - BM25 top-k slider

@@ -1,5 +1,4 @@
 from src import config
-from src.generation.gemma_generator import GemmaGenerator
 from src.retrieval.hybrid_retriever import HybridRetriever
 
 
@@ -7,15 +6,17 @@ class Pipeline:
     def __init__(
         self,
         retriever: HybridRetriever | None = None,
-        generator: GemmaGenerator | None = None,
+        generator=None,
         answer_mode: str | None = None,
     ):
         self.retriever = retriever if retriever is not None else HybridRetriever()
         self.generator = generator
         self.answer_mode = answer_mode or config.ANSWER_MODE
 
-    def _get_generator(self) -> GemmaGenerator:
+    def _get_generator(self):
         if self.generator is None:
+            from src.generation.gemma_generator import GemmaGenerator
+
             self.generator = GemmaGenerator()
         return self.generator
 
