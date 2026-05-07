@@ -135,6 +135,30 @@ python -c "from src.pipeline import Pipeline; p=Pipeline(); print(p.query('什�
 
 The first run may download model files and take several minutes.
 
+## Performance Options
+
+By default, `Pipeline` uses Gemma generation. If `device_map=auto` offloads Gemma layers to CPU/RAM, generation can be very slow.
+
+On a machine with enough free GPU memory, force Gemma onto GPU:
+
+```bash
+GEN_DEVICE_MAP=cuda python3 -c "from src.pipeline import Pipeline; p=Pipeline(); print(p.query('什麼是 Time-homogeneous Markov process？'))"
+```
+
+If the GPU does not have enough memory, this mode may fail with CUDA OOM instead of slowly offloading to CPU.
+
+For quick retrieval-only testing without loading Gemma, use extractive answer mode:
+
+```bash
+ANSWER_MODE=extractive python3 -c "from src.pipeline import Pipeline; p=Pipeline(); print(p.query('什麼是 Time-homogeneous Markov process？'))"
+```
+
+You can also reduce generation length:
+
+```bash
+GEN_MAX_NEW_TOKENS=64 python3 -c "from src.pipeline import Pipeline; p=Pipeline(); print(p.query('什麼是 Time-homogeneous Markov process？'))"
+```
+
 ## Run The UI
 
 ```powershell
