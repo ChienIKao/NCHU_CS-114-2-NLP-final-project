@@ -185,9 +185,10 @@ The Streamlit app provides:
 
 - BM25 top-k slider
 - Final answer count slider
-- Query input
-- Generated answer
-- Source chunk expander
+- Chat-style query input
+- Mode selector for retrieval-only and Gemma generation
+- Conversation history
+- Source chunk expander for each answer
 
 ## Notes
 

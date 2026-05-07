@@ -25,14 +25,21 @@ class Pipeline:
             return config.NO_RESULT_ANSWER
         return chunks[0]["text"].strip()[:500].strip()
 
-    def query(self, text: str, bm25_k: int = config.BM25_TOP_K, final_k: int = config.VECTOR_TOP_K) -> dict:
+    def query(
+        self,
+        text: str,
+        bm25_k: int = config.BM25_TOP_K,
+        final_k: int = config.VECTOR_TOP_K,
+        answer_mode: str | None = None,
+    ) -> dict:
         query_text = text.strip()
         if not query_text:
             return {"answer": config.NO_RESULT_ANSWER, "chunks": []}
         chunks = self.retriever.retrieve(query_text, bm25_k=bm25_k, final_k=final_k)
         if not chunks:
             return {"answer": config.NO_RESULT_ANSWER, "chunks": []}
-        if self.answer_mode.lower() == "extractive":
+        mode = (answer_mode or self.answer_mode).lower()
+        if mode == "extractive":
             answer = self._extractive_answer(chunks)
         else:
             answer = self._get_generator().generate(query_text, chunks)
