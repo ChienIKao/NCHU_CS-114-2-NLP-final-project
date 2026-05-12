@@ -1,5 +1,5 @@
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from src import config
 
@@ -13,22 +13,27 @@ SYSTEM_PROMPT = """你是一個課程講義 RAG 聊天機器人。
 """
 
 
+def _log_gpu_memory(label: str) -> None:
+    if not torch.cuda.is_available():
+        return
+    allocated = torch.cuda.memory_allocated() / 1024**3
+    reserved = torch.cuda.memory_reserved() / 1024**3
+    print(f"[GPU Memory] {label}: allocated={allocated:.2f} GB | reserved={reserved:.2f} GB")
+
+
 class GemmaGenerator:
     def __init__(self, model_name: str = config.GEN_MODEL):
         self.model_name = model_name
         device_map = self._resolve_device_map(config.GEN_DEVICE_MAP)
-        bnb_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=torch.bfloat16,
-        )
+
+        _log_gpu_memory("before model load")
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
-            quantization_config=bnb_config,
+            torch_dtype=torch.float16,
             device_map=device_map,
-            offload_buffers=config.GEN_OFFLOAD_BUFFERS,
         )
+        _log_gpu_memory("after model load")
 
     @staticmethod
     def _resolve_device_map(value: str):
@@ -83,8 +88,10 @@ class GemmaGenerator:
         }
         if config.GEN_DO_SAMPLE:
             generation_kwargs["temperature"] = config.GEN_TEMPERATURE
+        _log_gpu_memory("before generate")
         with torch.no_grad():
             output = self.model.generate(**inputs, **generation_kwargs)
+        _log_gpu_memory("after generate")
         new_tokens = output[0][inputs["input_ids"].shape[1] :]
         answer = self._clean_answer(self.tokenizer.decode(new_tokens, skip_special_tokens=True).strip())
         return answer

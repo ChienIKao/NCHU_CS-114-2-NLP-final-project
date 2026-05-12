@@ -5,7 +5,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 from src import config
-from src.ingestion.chunker import chunk_page
+from src.ingestion.chunker import chunk_document
 from src.ingestion.pdf_parser import parse_pdf
 from src.retrieval.bm25_retriever import build_bm25_index
 from src.retrieval.vector_retriever import append_faiss_index, build_faiss_index
@@ -29,8 +29,7 @@ def parse_and_chunk(pdf_files: list[Path]) -> list[dict]:
     chunks = []
     for pdf_file in tqdm(pdf_files, desc="Parsing PDFs"):
         pages = parse_pdf(str(pdf_file))
-        for page in pages:
-            chunks.extend(chunk_page(page, chunk_size=config.CHUNK_SIZE, overlap=config.CHUNK_OVERLAP))
+        chunks.extend(chunk_document(pages, chunk_size=config.CHUNK_SIZE, overlap=config.CHUNK_OVERLAP))
     return chunks
 
 
