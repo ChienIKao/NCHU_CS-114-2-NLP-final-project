@@ -30,6 +30,7 @@ class VectorRetriever:
         model_name: str = config.EMBED_MODEL,
         index_path: str | Path = config.FAISS_INDEX_PATH,
         chunk_ids_path: str | Path = config.CHUNK_IDS_PATH,
+        chunks_path: str | Path = config.CHUNKS_PATH,
     ):
         self.model_name = model_name
         self.index_path = Path(index_path)
@@ -44,6 +45,12 @@ class VectorRetriever:
                 self.chunk_ids = json.load(file)
         else:
             self.chunk_ids = []
+        chunks_path = Path(chunks_path)
+        if chunks_path.exists():
+            with chunks_path.open("r", encoding="utf-8") as file:
+                self._chunks = [json.loads(line) for line in file if line.strip()]
+        else:
+            self._chunks = []
 
     def embed(self, texts: list[str]) -> np.ndarray:
         if not texts:
@@ -63,6 +70,25 @@ class VectorRetriever:
             embeddings = embeddings / embeddings.norm(dim=1, keepdim=True)
             vectors.append(embeddings.cpu().numpy().astype("float32"))
         return np.vstack(vectors)
+
+    def retrieve(self, query: str, top_k: int = config.VECTOR_TOP_K) -> list[dict]:
+        """Search FAISS index directly — handles cross-lingual queries."""
+        if self.index is None or not self.chunk_ids:
+            return []
+        q_vec = self.embed([query])
+        scores, indices = self.index.search(q_vec, top_k)
+        results = []
+        for score, idx in zip(scores[0], indices[0]):
+            if idx < 0 or idx >= len(self.chunk_ids):
+                continue
+            chunk_id = self.chunk_ids[idx]
+            chunk = next((c for c in self._chunks if c["id"] == chunk_id), None)
+            if chunk is None:
+                continue
+            chunk = dict(chunk)
+            chunk["vector_score"] = float(score)
+            results.append(chunk)
+        return results
 
     def rerank(self, query: str, candidates: list[dict], top_k: int = config.VECTOR_TOP_K) -> list[dict]:
         if not candidates:
