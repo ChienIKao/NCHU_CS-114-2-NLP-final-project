@@ -4,6 +4,21 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from src import config
 
 
+_REWRITE_PROMPT = """\
+You are a search query optimizer for an NLP course retrieval system.
+Given a question in any language, output ONLY concise English keywords \
+suitable for searching English lecture slides. Translate Chinese terms to English.
+Output only the keywords on a single line, no explanation.
+
+Examples:
+多頭注意力機制 → Multi-Head Attention transformer queries keys values
+BERT 是什麼 → BERT bidirectional encoder representations transformers pre-training
+梯度消失 → vanishing gradient problem deep learning backpropagation
+What is TF-IDF? → TF-IDF term frequency inverse document frequency
+
+Question: {query}
+Keywords:"""
+
 SYSTEM_PROMPT = """你是一個課程講義 RAG 聊天機器人。
 你的任務是根據檢索到的課程講義片段回答使用者問題。
 只能使用提供的 context 內容回答；如果 context 找不到答案，請只回答「資料庫中無相關資訊」。
@@ -94,6 +109,25 @@ class GemmaGenerator:
             answer = " ".join(answer_lines).strip()
 
         return answer.strip()
+
+    def rewrite_for_retrieval(self, query: str) -> str:
+        """Translate and expand query into English keywords for retrieval."""
+        prompt = _REWRITE_PROMPT.format(query=query)
+        messages = [{"role": "user", "content": prompt}]
+        text = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        inputs = self.tokenizer(text, return_tensors="pt").to(self.model.device)
+        with torch.no_grad():
+            output = self.model.generate(
+                **inputs,
+                max_new_tokens=40,
+                do_sample=False,
+                pad_token_id=self.tokenizer.eos_token_id,
+            )
+        new_tokens = output[0][inputs["input_ids"].shape[1]:]
+        result = self.tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
+        rewritten = result.splitlines()[0].strip()
+        print(f"[QueryRewrite] '{query}' → '{rewritten}'")
+        return rewritten or query
 
     def generate(self, query: str, chunks: list[dict]) -> str:
         if not chunks:

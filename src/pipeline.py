@@ -62,11 +62,19 @@ class Pipeline:
         query_text = text.strip()
         if not query_text:
             return {"answer": config.NO_RESULT_ANSWER, "chunks": []}
+
+        # Step 1: strip instruction prefixes (regex)
         retrieval_query = self._rewrite_query(query_text)
+
+        # Step 2: LLM rewrite — translate + expand to English keywords
+        mode = (answer_mode or self.answer_mode).lower()
+        if config.LLM_QUERY_REWRITE and mode != "extractive":
+            retrieval_query = self._get_generator().rewrite_for_retrieval(retrieval_query)
+
         chunks = self.retriever.retrieve(retrieval_query, bm25_k=bm25_k, final_k=final_k)
         if not chunks:
             return {"answer": config.NO_RESULT_ANSWER, "chunks": []}
-        mode = (answer_mode or self.answer_mode).lower()
+
         if mode == "extractive":
             answer = self._extractive_answer(chunks)
         else:

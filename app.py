@@ -17,10 +17,15 @@ def render_sources(chunks: list[dict]) -> None:
             return
         for i, chunk in enumerate(chunks, 1):
             st.markdown(f"**[{i}]** `{chunk['source_file']}`，第 {chunk['page']} 頁")
+            scores = []
+            if "rrf_score" in chunk:
+                scores.append(f"RRF: {chunk['rrf_score']:.4f}")
             if "bm25_score" in chunk:
-                st.caption(f"BM25: {chunk['bm25_score']:.4f}")
+                scores.append(f"BM25: {chunk['bm25_score']:.4f}")
             if "vector_score" in chunk:
-                st.caption(f"Vector: {chunk['vector_score']:.4f}")
+                scores.append(f"Vector: {chunk['vector_score']:.4f}")
+            if scores:
+                st.caption(" · ".join(scores))
             st.markdown(chunk["text"])
             st.divider()
 
