@@ -37,6 +37,8 @@ EMBED_MAX_LENGTH = 512
 
 ANSWER_MODE = os.environ.get("ANSWER_MODE", "gemma")
 GEN_MODEL = os.environ.get("GEN_MODEL", "google/gemma-4-E4B-it")
+GEN_DRAFT_MODEL = os.environ.get("GEN_DRAFT_MODEL", "google/gemma-4-E4B-it-assistant")
+GEN_MTP_ENABLED = _env_bool("GEN_MTP_ENABLED", True)
 GEN_DEVICE_MAP = os.environ.get("GEN_DEVICE_MAP", "auto")
 GEN_MAX_NEW_TOKENS = _env_int("GEN_MAX_NEW_TOKENS", 512)
 GEN_TEMPERATURE = 0.1

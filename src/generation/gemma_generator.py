@@ -16,9 +16,24 @@ SYSTEM_PROMPT = """你是一個課程講義 RAG 聊天機器人。
 def _log_gpu_memory(label: str) -> None:
     if not torch.cuda.is_available():
         return
-    allocated = torch.cuda.memory_allocated() / 1024**3
-    reserved = torch.cuda.memory_reserved() / 1024**3
-    print(f"[GPU Memory] {label}: allocated={allocated:.2f} GB | reserved={reserved:.2f} GB")
+    for i in range(torch.cuda.device_count()):
+        allocated = torch.cuda.memory_allocated(i) / 1024**3
+        reserved = torch.cuda.memory_reserved(i) / 1024**3
+        total = torch.cuda.get_device_properties(i).total_memory / 1024**3
+        pct = allocated / total * 100
+        print(
+            f"[GPU {i}] {label}: "
+            f"allocated={allocated:.2f}/{total:.0f} GB ({pct:.1f}%) | "
+            f"reserved={reserved:.2f} GB"
+        )
+
+
+def _load_model(model_name: str, device_map) -> AutoModelForCausalLM:
+    return AutoModelForCausalLM.from_pretrained(
+        model_name,
+        torch_dtype=torch.float16,
+        device_map=device_map,
+    )
 
 
 class GemmaGenerator:
@@ -28,12 +43,16 @@ class GemmaGenerator:
 
         _log_gpu_memory("before model load")
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            torch_dtype=torch.float16,
-            device_map=device_map,
-        )
-        _log_gpu_memory("after model load")
+        self.model = _load_model(model_name, device_map)
+        _log_gpu_memory("after target model load")
+
+        self.draft_model: AutoModelForCausalLM | None = None
+        if config.GEN_MTP_ENABLED:
+            print(f"[MTP] Loading draft model: {config.GEN_DRAFT_MODEL}")
+            self.draft_model = _load_model(config.GEN_DRAFT_MODEL, device_map)
+            _log_gpu_memory("after draft model load")
+        else:
+            print("[MTP] Disabled")
 
     @staticmethod
     def _resolve_device_map(value: str):
@@ -88,10 +107,20 @@ class GemmaGenerator:
         }
         if config.GEN_DO_SAMPLE:
             generation_kwargs["temperature"] = config.GEN_TEMPERATURE
+        if self.draft_model is not None:
+            generation_kwargs["assistant_model"] = self.draft_model
+
+        import time
         _log_gpu_memory("before generate")
+        t0 = time.perf_counter()
         with torch.no_grad():
             output = self.model.generate(**inputs, **generation_kwargs)
+        elapsed = time.perf_counter() - t0
         _log_gpu_memory("after generate")
+
         new_tokens = output[0][inputs["input_ids"].shape[1] :]
+        n_new = new_tokens.shape[0]
+        mtp_tag = "MTP" if self.draft_model is not None else "no-MTP"
+        print(f"[Generate] {mtp_tag}: {n_new} tokens in {elapsed:.2f}s ({n_new / elapsed:.1f} tok/s)")
         answer = self._clean_answer(self.tokenizer.decode(new_tokens, skip_special_tokens=True).strip())
         return answer
